@@ -1,4 +1,4 @@
-# lindi_sticker_widget
+# sticker_widget
 
 ## Features
 
