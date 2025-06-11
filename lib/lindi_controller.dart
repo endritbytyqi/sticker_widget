@@ -89,30 +89,34 @@ class LindiController extends ChangeNotifier {
 
   /// Constructor to initialize properties with default values.
   ///
-  LindiController(
-      {required this.icons,
-      this.borderColor = Colors.white,
-      this.borderWidth = 1.5,
-      this.showBorders = true,
-      this.shouldMove = true,
-      this.shouldRotate = true,
-      this.shouldScale = true,
-      this.minScale = 0.5,
-      this.maxScale = 4,
-      this.insidePadding = 13}) {
+  LindiController({
+    required this.icons,
+    this.borderColor = Colors.white,
+    this.borderWidth = 1.5,
+    this.showBorders = true,
+    this.shouldMove = true,
+    this.shouldRotate = true,
+    this.shouldScale = true,
+    this.minScale = 0.5,
+    this.maxScale = 4,
+    this.insidePadding = 13,
+  }) {
     onPositionChange();
   }
 
   // Method to add a widget to the list of draggable widgets.
-  add(Widget widget,
-      {@Deprecated(
-          'This property will be removed in a future release. Migrate your code accordingly.')
-      Alignment position = Alignment.center}) {
+  add(
+    Widget widget, {
+    @Deprecated('This property will be removed in a future release. Migrate your code accordingly.')
+    Alignment? position,
+    Matrix4? initialTransform,
+  }) {
     // Generate a unique key for the widget.
     Key key = Key('lindi-${DateTime.now().millisecondsSinceEpoch}-${_nrRnd()}');
 
     // Create a DraggableWidget with specified properties.
-    widgets.add(DraggableWidget(
+    widgets.add(
+      DraggableWidget(
         key: key,
         icons: icons,
         borderColor: borderColor,
@@ -124,7 +128,7 @@ class LindiController extends ChangeNotifier {
         minScale: minScale,
         maxScale: maxScale,
         insidePadding: insidePadding,
-        position: _ensureWithinBounds(position),
+        position: position ?? Alignment.center,
         onBorder: (key) {
           _border(key);
         },
@@ -134,7 +138,10 @@ class LindiController extends ChangeNotifier {
         onLayer: (key) {
           _layer(key);
         },
-        child: widget));
+        child: widget,
+        initialTransform: initialTransform,
+      ),
+    );
 
     // Highlight the border of the added widget.
     _border(key);
@@ -182,9 +189,7 @@ class LindiController extends ChangeNotifier {
     for (int i = 0; i < widgets.length; i++) {
       if (widgets[i].key == key) {
         widgets[i].showBorder(true);
-        if (_selectedIndex.current == null ||
-            deleted ||
-            widgets[_selectedIndex.current!].key != widgets[i].key) {
+        if (_selectedIndex.current == null || deleted || widgets[_selectedIndex.current!].key != widgets[i].key) {
           if (deleted) deleted = false;
           _selectedIndex.update(i);
         }
@@ -208,8 +213,7 @@ class LindiController extends ChangeNotifier {
 
   // Method to change the layering of a widget.
   _layer(key) {
-    int index =
-        widgets.indexOf(widgets.firstWhere((element) => element.key == key));
+    int index = widgets.indexOf(widgets.firstWhere((element) => element.key == key));
     if (index > 0) {
       DraggableWidget item = widgets.removeAt(index);
       _currentIndex = index - 1;
@@ -226,15 +230,12 @@ class LindiController extends ChangeNotifier {
     try {
       Uint8List? pngBytes;
       double pixelRatio = 2;
-      await Future.delayed(const Duration(milliseconds: 700))
-          .then((value) async {
+      await Future.delayed(const Duration(milliseconds: 700)).then((value) async {
         // Capture the image of the widget.
         RenderRepaintBoundary boundary =
-            LindiStickerWidget.globalKey.currentContext?.findRenderObject()
-                as RenderRepaintBoundary;
+            LindiStickerWidget.globalKey.currentContext?.findRenderObject() as RenderRepaintBoundary;
         ui.Image image = await boundary.toImage(pixelRatio: pixelRatio);
-        ByteData? byteData =
-            await image.toByteData(format: ui.ImageByteFormat.png);
+        ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
         pngBytes = byteData?.buffer.asUint8List();
       });
       return pngBytes;
@@ -271,5 +272,14 @@ class LindiController extends ChangeNotifier {
       widget.done();
     }
     notifyListeners();
+  }
+
+  // Get the current position of the selected widget
+  Offset? getSelectedWidgetPosition() {
+    if (selectedWidget != null) {
+      final Matrix4 transform = selectedWidget!.getTransform();
+      return Offset(transform.getTranslation().x, transform.getTranslation().y);
+    }
+    return null;
   }
 }

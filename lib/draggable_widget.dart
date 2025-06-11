@@ -73,23 +73,25 @@ class DraggableWidget extends StatelessWidget {
 
   /// Constructor to initialize the widget's properties.
   ///
-  DraggableWidget(
-      {super.key,
-      required icons,
-      required this.child,
-      required position,
-      required borderColor,
-      required borderWidth,
-      required showBorders,
-      required shouldMove,
-      required shouldRotate,
-      required shouldScale,
-      required minScale,
-      required maxScale,
-      required onBorder,
-      required onDelete,
-      required onLayer,
-      required insidePadding}) {
+  DraggableWidget({
+    super.key,
+    required icons,
+    required this.child,
+    required position,
+    required borderColor,
+    required borderWidth,
+    required showBorders,
+    required shouldMove,
+    required shouldRotate,
+    required shouldScale,
+    required minScale,
+    required maxScale,
+    required onBorder,
+    required onDelete,
+    required onLayer,
+    required insidePadding,
+    Matrix4? initialTransform,
+  }) {
     _icons = icons;
     _position = position;
     _borderColor = borderColor;
@@ -108,6 +110,10 @@ class DraggableWidget extends StatelessWidget {
     _initShouldMove = _shouldMove;
     _initShouldScale = _shouldScale;
     _initShouldRotate = _shouldRotate;
+
+    if (initialTransform != null) {
+      _notifier.value = initialTransform;
+    }
   }
 
   // A reference to the LindiGestureDetector's state
@@ -156,38 +162,43 @@ class DraggableWidget extends StatelessWidget {
     _updater.value = !_updater.value;
   }
 
+  // Method to get the current transform matrix
+  Matrix4 getTransform() {
+    return _notifier.value;
+  }
+
   @override
   Widget build(BuildContext context) {
     // Build the widget based on ValueListenable for updates.
     return ValueListenableBuilder(
-        valueListenable: _updater,
-        builder: (_, __, ___) {
-          // Calculate sizes and dimensions based on the current scale.
-          double marginSize = 12 / _scale;
+      valueListenable: _updater,
+      builder: (_, __, ___) {
+        // Calculate sizes and dimensions based on the current scale.
+        double marginSize = 12 / _scale;
 
-          // LindiGestureDetector for handling scaling, rotating, and translating the widget.
-          return LindiGestureDetector(
-            centerKey: centerKey,
-            shouldTranslate: _shouldMove,
-            shouldRotate: _shouldRotate,
-            shouldScale: _shouldScale,
-            minScale: _minScale,
-            maxScale: _maxScale,
-            onScaleStart: (bool update) {
-              if (update) _isUpdating = true;
-              _onBorder(key);
-            },
-            onScaleEnd: () {
-              _isUpdating = false;
-              _updater.value = !_updater.value;
-            },
-            onUpdate: (s, m) {
-              _scale = s;
-              _notifier.value = m;
-            },
-            child: Builder(builder: (context) {
-              _gestureDetectorState =
-                  context.findAncestorStateOfType<LindiGestureDetectorState>()!;
+        // LindiGestureDetector for handling scaling, rotating, and translating the widget.
+        return LindiGestureDetector(
+          centerKey: centerKey,
+          shouldTranslate: _shouldMove,
+          shouldRotate: _shouldRotate,
+          shouldScale: _shouldScale,
+          minScale: _minScale,
+          maxScale: _maxScale,
+          onScaleStart: (bool update) {
+            if (update) _isUpdating = true;
+            _onBorder(key);
+          },
+          onScaleEnd: () {
+            _isUpdating = false;
+            _updater.value = !_updater.value;
+          },
+          onUpdate: (s, m) {
+            _scale = s;
+            _notifier.value = m;
+          },
+          child: Builder(
+            builder: (context) {
+              _gestureDetectorState = context.findAncestorStateOfType<LindiGestureDetectorState>()!;
               return AnimatedBuilder(
                 animation: _notifier,
                 builder: (ctx, child) {
@@ -202,84 +213,77 @@ class DraggableWidget extends StatelessWidget {
                           Container(
                             margin: EdgeInsets.all(marginSize),
                             padding: EdgeInsets.all(_insidePadding / _scale),
-                            decoration: (_showBorders && _showBorder)
-                                ? BoxDecoration(
-                                    border: Border.all(
-                                        color: _borderColor,
-                                        width: _borderWidth / _scale),
-                                  )
-                                : null,
+                            decoration:
+                                (_showBorders && _showBorder)
+                                    ? BoxDecoration(
+                                      border: Border.all(color: _borderColor, width: _borderWidth / _scale),
+                                    )
+                                    : null,
                             child: FittedBox(
                               fit: BoxFit.contain,
-                              child: Transform.flip(
-                                  flipX: _isFlip, child: this.child),
+                              child: Transform.flip(flipX: _isFlip, child: this.child),
                             ),
                           ),
                           // Widgets for interaction (e.g., delete, flip, etc.).
                           for (int i = 0; i < _icons.length; i++) ...[
-                            if (_showBorders &&
-                                _showBorder &&
-                                (!_isLock || _icons[i].type == IconType.lock))
-                              Builder(builder: (context) {
-                                bool isLock = _icons[i].type == IconType.lock;
-                                bool isResize =
-                                    _icons[i].type == IconType.resize;
-                                LindiStickerIcon icon = _icons[i];
-                                double circleSize = icon.iconSize + 12;
-                                return PositionedAlign(
-                                  alignment: icon.alignment,
-                                  child: ScaleTransition(
+                            if (_showBorders && _showBorder && (!_isLock || _icons[i].type == IconType.lock))
+                              Builder(
+                                builder: (context) {
+                                  bool isLock = _icons[i].type == IconType.lock;
+                                  bool isResize = _icons[i].type == IconType.resize;
+                                  LindiStickerIcon icon = _icons[i];
+                                  double circleSize = icon.iconSize + 12;
+                                  return PositionedAlign(
                                     alignment: icon.alignment,
-                                    scale: AlwaysStoppedAnimation(1 / _scale),
-                                    child: GestureDetector(
-                                      onPanUpdate: isResize
-                                          ? _gestureDetectorState.onDragUpdate
-                                          : null,
-                                      onPanStart: isResize
-                                          ? _gestureDetectorState.onDragStart
-                                          : null,
-                                      onPanEnd: isResize
-                                          ? _gestureDetectorState.onDragEnd
-                                          : null,
-                                      onTap: !isResize ? icon.onTap : null,
-                                      child: SizedBox(
-                                        width: circleSize,
-                                        height: circleSize,
-                                        child: CircleAvatar(
-                                            backgroundColor:
-                                                icon.backgroundColor,
+                                    child: ScaleTransition(
+                                      alignment: icon.alignment,
+                                      scale: AlwaysStoppedAnimation(1 / _scale),
+                                      child: GestureDetector(
+                                        onPanUpdate: isResize ? _gestureDetectorState.onDragUpdate : null,
+                                        onPanStart: isResize ? _gestureDetectorState.onDragStart : null,
+                                        onPanEnd: isResize ? _gestureDetectorState.onDragEnd : null,
+                                        onTap: !isResize ? icon.onTap : null,
+                                        child: SizedBox(
+                                          width: circleSize,
+                                          height: circleSize,
+                                          child: CircleAvatar(
+                                            backgroundColor: icon.backgroundColor,
                                             child: Icon(
-                                              (isLock &&
-                                                      icon.lockedIcon != null)
+                                              (isLock && icon.lockedIcon != null)
                                                   ? _isLock
                                                       ? icon.lockedIcon
                                                       : icon.icon
                                                   : icon.icon,
                                               size: icon.iconSize,
                                               color: icon.iconColor,
-                                            )),
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              }),
+                                  );
+                                },
+                              ),
                           ],
-                          SizedBox(key: centerKey)
+                          SizedBox(key: centerKey),
                         ],
                       ),
                     ),
                   );
                   return _isUpdating
                       ? Container(
-                          color: Colors.transparent,
-                          width: double.infinity,
-                          height: double.infinity,
-                          child: transformChild)
+                        color: Colors.transparent,
+                        width: double.infinity,
+                        height: double.infinity,
+                        child: transformChild,
+                      )
                       : transformChild;
                 },
               );
-            }),
-          );
-        });
+            },
+          ),
+        );
+      },
+    );
   }
 }
