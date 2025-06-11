@@ -264,4 +264,12 @@ class LindiController extends ChangeNotifier {
     rnd = Random();
     return min + rnd.nextInt(max - min);
   }
+
+  // Deselect all widgets (hide control icons)
+  void deselectAll() {
+    for (final widget in widgets) {
+      widget.done();
+    }
+    notifyListeners();
+  }
 }
